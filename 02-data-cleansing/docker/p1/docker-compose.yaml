@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  data_generator:
+    image: 'waitingforcode/data-generator-kafka:0.4'
+    container_name: homework_4_data_generator
+    depends_on:
+      - kafka
+    volumes:
+      - ./configuration.yaml:/home/data_generator/run/kafka/configuration.yaml    
+  zookeeper:
+    image: 'bitnami/zookeeper:3'
+    container_name: homework_4_zookeeper
+    ports:
+      - '2181:2181'
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+  kafka:
+    image: 'bitnami/kafka:2'
+    container_name: homework_4_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+      - '29092:29092'
+    volumes:
+      - './log4j.properties:/tmp/log4j.properties'
+      - ./scripts/setup_context.sh:/docker-entrypoint-initdb.d/setup_context.sh
+      - ./scripts/start_topics.sh:/start_topics.sh
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_HOST://:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      - KAFKA_DELETE_TOPIC_ENABLE=true
+      - KAFKA_OPTS=-Dlog4j.configuration=file:/tmp/log4j.properties
+  postgresql:
+      image: postgres:11
+      container_name: homework_4_postgresql
+      environment:
+        - POSTGRES_USER=bde_user
+        - POSTGRES_PASSWORD=bde_password
+        - POSTGRES_DB=bde
+      ports:
+          - "5432:5432"
+      volumes:
+        - ./init_postgresql.sql:/docker-entrypoint-initdb.d/init.sql
